@@ -546,3 +546,49 @@ button:disabled {
   gap: 12px;
   padding: 16px 24px 20px;
 }
+
+/* CV preview page (preview.html) */
+
+.preview-body {
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+}
+
+.preview-main {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+}
+
+.viewer {
+  flex: 1;
+  width: 100%;
+  min-height: 75vh;
+  border: 0;
+  background: var(--surface-2);
+}
+
+.viewer[hidden] {
+  display: none;
+}
+
+.file-name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.brand {
+  min-width: 0;
+}
+
+a.button-secondary {
+  display: inline-flex;
+  align-items: center;
+  text-decoration: none;
+}
+
+a.button-secondary[hidden] {
+  display: none;
+}

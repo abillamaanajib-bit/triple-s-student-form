@@ -1,0 +1,37 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="robots" content="noindex, nofollow">
+  <title>CV preview</title>
+  <meta name="theme-color" content="#37939b">
+  <link rel="stylesheet" href="../styles.css">
+  <link rel="stylesheet" href="admin.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" defer></script>
+  <script src="../config.js" defer></script>
+  <script src="preview.js" defer></script>
+</head>
+<body class="preview-body">
+  <header class="topbar">
+    <div class="topbar-inner">
+      <div class="brand">
+        <picture>
+          <source srcset="../assets/logo-dark.svg" media="(prefers-color-scheme: dark)">
+          <img src="../assets/logo.svg" alt="TRIPLE S x gocity" width="144" height="211">
+        </picture>
+        <span id="file-name" class="file-name">CV preview</span>
+      </div>
+      <a id="download" class="button-secondary" hidden>Download</a>
+    </div>
+  </header>
+
+  <main class="preview-main">
+    <p id="preview-status" class="center-note" role="status">Opening CV…</p>
+    <iframe id="pdf-viewer" class="viewer" title="CV preview" hidden></iframe>
+    <!-- Word CVs are converted to HTML. The sandbox stops anything in them from running;
+         it only lets their links open in a new tab. -->
+    <iframe id="doc-viewer" class="viewer" title="CV preview" sandbox="allow-popups allow-popups-to-escape-sandbox" hidden></iframe>
+  </main>
+</body>
+</html>

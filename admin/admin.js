@@ -5,7 +5,6 @@
 // as text (see el()), never as HTML.
 
 const FAILED_CV_PREFIX = "UPLOAD FAILED: ";
-const CV_LINK_SECONDS = 60 * 60;
 const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
 
 const $ = (id) => document.getElementById(id);
@@ -23,8 +22,6 @@ const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", t
 let db;
 let currentUserId;
 let submissions = [];
-let cvLinks = new Map(); // cv_path -> signed URL
-let cvLinkTimer;
 let openRow;
 
 // --- helpers ---------------------------------------------------------------
@@ -96,8 +93,6 @@ async function handleSession(session) {
 
 function clearData() {
   submissions = [];
-  cvLinks = new Map();
-  clearInterval(cvLinkTimer);
   $("rows").replaceChildren();
   if ($("detail").open) $("detail").close();
 }
@@ -140,26 +135,9 @@ async function loadSubmissions() {
     return;
   }
   submissions = data;
-  await refreshCvLinks();
   setStatus("");
   fillInterestFilter();
   render();
-}
-
-// CV links are temporary (signed) URLs, renewed before they expire.
-async function refreshCvLinks() {
-  clearInterval(cvLinkTimer);
-  const paths = submissions.map((row) => row.cv_path).filter(hasStoredCv);
-  cvLinks = new Map();
-  if (paths.length) {
-    const { data, error } = await db.storage.from(CV_BUCKET).createSignedUrls(paths, CV_LINK_SECONDS);
-    if (error) console.error(error);
-    for (const item of data ?? []) if (item.signedUrl) cvLinks.set(item.path, item.signedUrl);
-  }
-  cvLinkTimer = setInterval(async () => {
-    await refreshCvLinks();
-    render();
-  }, (CV_LINK_SECONDS - 5 * 60) * 1000);
 }
 
 async function deleteSubmission(row) {
@@ -250,12 +228,9 @@ function chips(values, limit = Infinity) {
 function documents(row) {
   const items = [];
   if (hasStoredCv(row.cv_path)) {
-    const url = cvLinks.get(row.cv_path);
-    items.push(
-      url
-        ? el("a", { class: "doc-link", href: url, target: "_blank", rel: "noopener", title: fileName(row.cv_path) }, "View CV")
-        : el("span", { class: "muted" }, "CV unavailable")
-    );
+    // Opens preview.html in a new tab; the path goes after # so it stays out of server logs.
+    const href = `preview.html#${encodeURIComponent(row.cv_path)}`;
+    items.push(el("a", { class: "doc-link", href, target: "_blank", title: fileName(row.cv_path) }, "View CV"));
   } else if (row.cv_path) {
     items.push(el("span", { class: "tag-warn", title: row.cv_path }, "CV upload failed"));
   }
