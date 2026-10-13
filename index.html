@@ -1,0 +1,227 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>TRIPLE S Student Interest Form</title>
+  <meta name="description" content="Tell TRIPLE S about your studies and the areas you’d like to explore.">
+  <meta name="theme-color" content="#37939b">
+  <link rel="stylesheet" href="styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.js" integrity="sha384-Rj26LVGvoeRVR6+mwQmFfcR3QOBEwT+ZmuCWpuiqeTzJpCs0ER4ITAWGb4Hiy3Ok" crossorigin="anonymous" defer></script>
+  <script src="script.js" defer></script>
+</head>
+<body>
+  <main class="page">
+    <header class="intro">
+      <picture class="intro-logo">
+        <source srcset="assets/logo-dark.svg" media="(prefers-color-scheme: dark)">
+        <img src="assets/logo.svg" alt="TRIPLE S x gocity" width="144" height="211">
+      </picture>
+      <div class="intro-text">
+        <h1>Student Interest Form</h1>
+        <p class="lede">Thank you for your interest in TRIPLE S. Please complete this short form to tell us about your studies and the areas you’d like to explore.</p>
+        <p class="notice">Submitting this form does not guarantee a placement.</p>
+      </div>
+    </header>
+
+    <form id="interest-form" novalidate>
+      <div id="error-summary" class="error-summary" role="alert" tabindex="-1" hidden>
+        <h2>Please fix the following</h2>
+        <ul></ul>
+      </div>
+
+      <p class="form-key">All questions are required unless marked optional.</p>
+
+      <section class="card" aria-labelledby="s-about">
+        <h2 id="s-about">About you</h2>
+
+        <div class="field" data-field="full_name">
+          <label class="label" for="f-name">Full name</label>
+          <input id="f-name" name="full_name" type="text" autocomplete="name" maxlength="120" aria-describedby="full_name-error">
+          <p class="field-error" id="full_name-error"></p>
+        </div>
+
+        <div class="field" data-field="email">
+          <label class="label" for="f-email">Email address</label>
+          <input id="f-email" name="email" type="email" autocomplete="email" maxlength="254" spellcheck="false" aria-describedby="email-error">
+          <p class="field-error" id="email-error"></p>
+        </div>
+
+        <div class="field" data-field="mobile">
+          <label class="label" for="f-mobile">Mobile number</label>
+          <p class="hint" id="mobile-hint">Include your country code if you’re outside the country, e.g. +44.</p>
+          <input id="f-mobile" name="mobile" type="tel" autocomplete="tel" inputmode="tel" maxlength="20" aria-describedby="mobile-hint mobile-error">
+          <p class="field-error" id="mobile-error"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="s-studies">
+        <h2 id="s-studies">Your studies</h2>
+
+        <fieldset class="field" data-field="school" aria-describedby="school-error">
+          <legend class="label">School</legend>
+          <div class="choices choices--3">
+            <label class="choice"><input id="f-school" type="radio" name="school" value="Business"> Business</label>
+            <label class="choice"><input type="radio" name="school" value="Sciences"> Sciences</label>
+            <label class="choice"><input type="radio" name="school" value="Engineering"> Engineering</label>
+          </div>
+          <p class="field-error" id="school-error"></p>
+        </fieldset>
+
+        <div class="field" data-field="major">
+          <label class="label" for="f-major">Major or program</label>
+          <input id="f-major" name="major" type="text" maxlength="120" aria-describedby="major-error">
+          <p class="field-error" id="major-error"></p>
+        </div>
+
+        <div class="field" data-field="year_of_study">
+          <label class="label" for="f-year">Current year of study</label>
+          <select id="f-year" name="year_of_study" aria-describedby="year_of_study-error">
+            <option value="">Select…</option>
+            <option>Year 1</option>
+            <option>Year 2</option>
+            <option>Year 3</option>
+            <option>Year 4</option>
+            <option>Year 5 or above</option>
+            <option>Master’s / postgraduate</option>
+          </select>
+          <p class="field-error" id="year_of_study-error"></p>
+        </div>
+      </section>
+
+      <section class="card" aria-labelledby="s-interests">
+        <h2 id="s-interests">Your interests</h2>
+
+        <fieldset class="field" aria-describedby="interests-hint">
+          <legend class="label">Which areas are you interested in? <span class="optional">Optional</span></legend>
+          <p class="hint" id="interests-hint">Select all that apply. You can choose areas from any school.</p>
+
+          <fieldset class="area-group" data-school="Business">
+            <legend>Business <span class="badge" hidden>Your school</span></legend>
+            <div class="choices">
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Marketing"> Marketing</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Business Development"> Business Development</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Finance and Data Entry"> Finance and Data Entry</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Community Onboarding"> Community Onboarding</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Customer Support"> Customer Support</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Human Resources"> Human Resources</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Business: Inventory Support"> Inventory Support</label>
+            </div>
+          </fieldset>
+
+          <fieldset class="area-group" data-school="Sciences">
+            <legend>Sciences <span class="badge" hidden>Your school</span></legend>
+            <div class="choices">
+              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Data Digitization"> Data Digitization</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Data Analytics"> Data Analytics</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Sciences: AI and Automation"> AI and Automation</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Sciences: IT and Digital Systems"> IT and Digital Systems</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Research"> Research</label>
+            </div>
+          </fieldset>
+
+          <fieldset class="area-group" data-school="Engineering">
+            <legend>Engineering <span class="badge" hidden>Your school</span></legend>
+            <div class="choices">
+              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Civil Engineering"> Civil Engineering</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Access Control and Connected Devices"> Access Control and Connected Devices</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Software Engineering and Integration"> Software Engineering and Integration</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Facility Management"> Facility Management</label>
+              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Technical Site Coordination"> Technical Site Coordination</label>
+            </div>
+          </fieldset>
+        </fieldset>
+
+        <fieldset class="field" aria-describedby="experience-hint">
+          <legend class="label">What type of experience interests you? <span class="optional">Optional</span></legend>
+          <p class="hint" id="experience-hint">Select all that apply.</p>
+          <div class="choices choices--3">
+            <label class="choice"><input type="checkbox" name="experience_types" value="Internship"> Internship</label>
+            <label class="choice"><input type="checkbox" name="experience_types" value="Part-time opportunity"> Part-time opportunity</label>
+            <label class="choice"><input type="checkbox" name="experience_types" value="Supervised assignment"> Supervised assignment</label>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="card" aria-labelledby="s-more">
+        <h2 id="s-more">A bit more about you</h2>
+
+        <div class="field">
+          <label class="label" for="f-skills">What skills or experience would you bring? <span class="optional">Optional</span></label>
+          <textarea id="f-skills" name="skills" rows="4" maxlength="1500"></textarea>
+        </div>
+
+        <fieldset class="field" aria-describedby="availability-hint">
+          <legend class="label">When would you be available? <span class="optional">Optional</span></legend>
+          <p class="hint" id="availability-hint">Add dates, a short note, or both.</p>
+          <div class="row">
+            <div class="subfield" data-field="available_from">
+              <label class="sublabel" for="f-from">From</label>
+              <input id="f-from" name="available_from" type="date">
+            </div>
+            <div class="subfield" data-field="available_until">
+              <label class="sublabel" for="f-until">Until</label>
+              <input id="f-until" name="available_until" type="date" aria-describedby="available_until-error">
+            </div>
+          </div>
+          <p class="field-error" id="available_until-error"></p>
+          <div class="subfield">
+            <label class="sublabel" for="f-availability-notes">Notes</label>
+            <input id="f-availability-notes" name="availability_notes" type="text" maxlength="200" placeholder="e.g. 15 hours a week during term">
+          </div>
+        </fieldset>
+
+        <fieldset class="field" aria-describedby="profile-hint">
+          <legend class="label">CV or LinkedIn profile <span class="optional">Optional</span></legend>
+          <p class="hint" id="profile-hint">Share a link, upload your CV, or both.</p>
+          <div class="subfield" data-field="profile_link">
+            <label class="sublabel" for="f-link">LinkedIn or CV link</label>
+            <input id="f-link" name="profile_link" type="url" inputmode="url" autocomplete="url" spellcheck="false" maxlength="300" placeholder="https://www.linkedin.com/in/your-name" aria-describedby="profile_link-error">
+            <p class="field-error" id="profile_link-error"></p>
+          </div>
+          <div class="subfield" data-field="cv_file">
+            <label class="sublabel" for="f-cv">Upload CV</label>
+            <p class="hint" id="cv-hint">PDF or Word document, up to 5 MB.</p>
+            <input id="f-cv" name="cv_file" type="file" accept=".pdf,.doc,.docx,application/pdf,application/msword,application/vnd.openxmlformats-officedocument.wordprocessingml.document" aria-describedby="cv-hint cv_file-error">
+            <p class="field-error" id="cv_file-error"></p>
+          </div>
+        </fieldset>
+      </section>
+
+      <section class="card" aria-labelledby="s-contact">
+        <h2 id="s-contact">Staying in touch</h2>
+
+        <fieldset class="field" data-field="contact_consent" aria-describedby="contact_consent-error">
+          <legend class="label">May TRIPLE S contact you about relevant student opportunities?</legend>
+          <div class="choices choices--2">
+            <label class="choice"><input id="f-consent" type="radio" name="contact_consent" value="Yes"> Yes</label>
+            <label class="choice"><input type="radio" name="contact_consent" value="No"> No</label>
+          </div>
+          <p class="field-error" id="contact_consent-error"></p>
+        </fieldset>
+      </section>
+
+      <!-- Spam trap: hidden from people, often filled in by bots. -->
+      <div class="trap" aria-hidden="true">
+        <label for="f-gotcha">Leave this field empty</label>
+        <input id="f-gotcha" name="_gotcha" type="text" tabindex="-1" autocomplete="off">
+      </div>
+
+      <div class="actions">
+        <p id="form-status" class="form-status" role="status" aria-live="polite"></p>
+        <button type="submit">Submit</button>
+      </div>
+    </form>
+
+    <section id="success" class="card success" tabindex="-1" aria-labelledby="success-title" hidden>
+      <div class="success-icon" aria-hidden="true">
+        <svg viewBox="0 0 24 24" width="28" height="28" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+      </div>
+      <h2 id="success-title">Thank you, your form has been submitted</h2>
+      <p>Your details have been sent to the TRIPLE S team.</p>
+      <p id="cv-note" class="success-note" hidden>Your details were sent, but your CV couldn’t be uploaded. The TRIPLE S team can see this and may ask you for it.</p>
+      <p id="preview-note" class="success-note" hidden>Preview mode: Supabase isn’t connected in <code>script.js</code> yet, so these answers weren’t saved.</p>
+    </section>
+  </main>
+</body>
+</html>
