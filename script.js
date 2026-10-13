@@ -1,12 +1,6 @@
-// Supabase project that stores submissions (set it up with supabase/schema.sql).
-// Both values are on the project's Settings -> API Keys page. The publishable
-// key is meant to be public: the database only lets it add new responses.
-// Leave them empty to run in preview mode: the form validates and shows the
-// thank-you screen, but nothing is sent.
-const SUPABASE_URL = "https://acsmfampogsmtakoglke.supabase.co";
-const SUPABASE_PUBLISHABLE_KEY = "sb_publishable_bQv8l_Yrd3JRYq8RhBlhNw_U2vsevJl";
-const SUBMISSIONS_TABLE = "student_interest_submissions";
-const CV_BUCKET = "cvs";
+// Supabase settings (SUPABASE_URL etc.) live in config.js, shared with admin/.
+// With SUPABASE_URL empty the form runs in preview mode: it validates and shows
+// the thank-you screen, but nothing is sent.
 
 const MAX_CV_BYTES = 5 * 1024 * 1024;
 const CV_TYPES = {
