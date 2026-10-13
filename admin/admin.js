@@ -1,46 +1,74 @@
-// TRIPLE S staff dashboard: lists form submissions with their CVs.
+// TRIPLE S staff dashboard: analytics and the list of form submissions.
 // Supabase enforces access (supabase/admin.sql): only signed-in @triple-s.me
 // accounts can read or delete anything, whatever this page does.
 // Everything shown here was typed by the public, so it is only ever inserted
-// as text (see el()), never as HTML.
+// as text (see el() and svg()), never as HTML.
 
 const FAILED_CV_PREFIX = "UPLOAD FAILED: ";
-const WEEK_MS = 7 * 24 * 60 * 60 * 1000;
+const DAY_MS = 24 * 60 * 60 * 1000;
+const PAGE_SIZE = 50;
+const TOP_BARS = 8;
+const MIN_PASSWORD = 8;
+const YEARS = ["Year 1", "Year 2", "Year 3", "Year 4", "Year 5 or above", "Master’s / postgraduate"];
+const UNIVERSITY_NAMES = new Map(UNIVERSITIES);
+const SVG_NS = "http://www.w3.org/2000/svg";
 
 const $ = (id) => document.getElementById(id);
-const views = ["loading", "login", "denied", "dashboard"];
-const filters = ["search", "school", "interest", "experience", "cv", "contact"].reduce(
-  (all, name) => ({ ...all, [name]: $(`filter-${name}`) }),
-  {}
+const views = ["loading", "login", "forgot", "recovery", "denied", "dashboard"];
+const filters = Object.fromEntries(
+  ["period", "university", "school", "interest", "experience", "cv", "contact"].map((name) => [name, $(`filter-${name}`)])
 );
+const tooltip = $("tooltip");
+const number = new Intl.NumberFormat();
 const dateTime = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeStyle: "short" });
 const dateOnly = new Intl.DateTimeFormat(undefined, { dateStyle: "medium" });
+const shortDate = new Intl.DateTimeFormat(undefined, { month: "short", day: "numeric" });
+const timeOnly = new Intl.DateTimeFormat(undefined, { timeStyle: "short" });
 // Availability dates are plain calendar dates ("2027-06-01"); format them in UTC
 // so they don't shift a day in other time zones.
 const calendarDate = new Intl.DateTimeFormat(undefined, { dateStyle: "medium", timeZone: "UTC" });
 
+// A password-reset email link lands here with "#...type=recovery" (or an error) in the address.
+const linkParams = new URLSearchParams(location.hash.slice(1));
+let recoveryMode = linkParams.get("type") === "recovery";
+const linkError = linkParams.get("error_description");
+
 let db;
 let currentUserId;
 let submissions = [];
+let currentRows = []; // submissions after the filter bar
+let visibleCount = PAGE_SIZE;
 let openRow;
 
 // --- helpers ---------------------------------------------------------------
 
 function el(tag, attrs = {}, ...children) {
   const node = document.createElement(tag);
+  setAttributes(node, attrs);
+  node.append(...children.flat().filter((child) => child != null && child !== false));
+  return node;
+}
+
+function svg(tag, attrs = {}, ...children) {
+  const node = document.createElementNS(SVG_NS, tag);
+  setAttributes(node, attrs);
+  node.append(...children);
+  return node;
+}
+
+function setAttributes(node, attrs) {
   for (const [key, value] of Object.entries(attrs)) {
     if (value == null || value === false) continue;
-    if (key === "class") node.className = value;
+    if (key === "class") node.setAttribute("class", value);
     else if (key.startsWith("on")) node.addEventListener(key.slice(2), value);
     else node.setAttribute(key, value === true ? "" : value);
   }
-  node.append(...children.flat().filter((child) => child != null && child !== false));
-  return node;
 }
 
 function show(view) {
   for (const name of views) $(`view-${name}`).hidden = name !== view;
   $("account").hidden = !["denied", "dashboard"].includes(view);
+  hideTooltip();
 }
 
 function setStatus(message, isError = false) {
@@ -53,9 +81,12 @@ function setBusy(button, busy, label) {
   button.textContent = label;
 }
 
+const plural = (count, word) => `${number.format(count)} ${word}${count === 1 ? "" : "s"}`;
+const percent = (part, whole) => (whole ? Math.round((part / whole) * 100) : 0);
 const hasStoredCv = (path) => Boolean(path) && !path.startsWith(FAILED_CV_PREFIX);
 const areaName = (interest) => interest.slice(interest.indexOf(":") + 1).trim();
 const fileName = (path) => path.slice(path.lastIndexOf("/") + 1);
+const universityTitle = (code) => (UNIVERSITY_NAMES.has(code) ? `${code} – ${UNIVERSITY_NAMES.get(code)}` : code);
 
 // Only real web links become clickable; anything else (e.g. "javascript:") is shown as text.
 function safeWebUrl(value) {
@@ -76,7 +107,11 @@ async function handleSession(session) {
     show("login");
     return;
   }
-  $("account-email").textContent = session.user.email;
+  setAccount(session.user.email);
+  if (recoveryMode) {
+    show("recovery");
+    return;
+  }
   const { data: isStaff, error } = await db.rpc("is_staff");
   if (error) console.error(error);
   if (!isStaff) {
@@ -91,10 +126,17 @@ async function handleSession(session) {
   await loadSubmissions();
 }
 
+function setAccount(email) {
+  $("account-email").textContent = email;
+  $("account-email-menu").textContent = `Signed in as ${email}`;
+  $("account-initial").textContent = email.charAt(0);
+}
+
 function clearData() {
   submissions = [];
+  currentRows = [];
   $("rows").replaceChildren();
-  if ($("detail").open) $("detail").close();
+  for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
 }
 
 async function signIn(event) {
@@ -103,6 +145,7 @@ async function signIn(event) {
   const password = $("login-password").value;
   const errorEl = $("login-error");
   errorEl.textContent = "";
+  $("login-notice").hidden = true;
   if (!email || !password) {
     errorEl.textContent = "Enter your email and password.";
     return;
@@ -119,10 +162,64 @@ async function signIn(event) {
   $("login-password").value = "";
 }
 
+async function sendResetLink(event) {
+  event.preventDefault();
+  const email = $("forgot-email").value.trim();
+  $("forgot-error").textContent = "";
+  $("forgot-done").hidden = true;
+  if (!email) {
+    $("forgot-error").textContent = "Enter your email address.";
+    return;
+  }
+  setBusy($("forgot-submit"), true, "Sending…");
+  const { error } = await db.auth.resetPasswordForEmail(email, { redirectTo: location.origin + location.pathname });
+  setBusy($("forgot-submit"), false, "Send reset link");
+  if (error) {
+    console.error(error);
+    $("forgot-error").textContent = /rate limit/i.test(error.message)
+      ? "Too many reset emails were sent recently. Please try again in an hour."
+      : /not authorized/i.test(error.message)
+        ? "Reset emails aren’t set up for this address yet. Ask the project owner to reset your password."
+        : error.message;
+    return;
+  }
+  $("forgot-done").textContent = `If ${email} has an account, a reset link is on its way. It can take a few minutes, so check your spam folder too.`;
+  $("forgot-done").hidden = false;
+}
+
+// Shared by "Choose a new password" (after a reset link) and "Change password".
+async function savePassword(form) {
+  const errorEl = form.querySelector(".field-error");
+  const button = form.querySelector('button[type="submit"]');
+  const password = form.elements.password.value;
+  errorEl.textContent =
+    password.length < MIN_PASSWORD
+      ? `Use at least ${MIN_PASSWORD} characters.`
+      : password !== form.elements.confirm.value
+        ? "The two passwords don’t match."
+        : "";
+  if (errorEl.textContent) return false;
+  setBusy(button, true, "Saving…");
+  const { error } = await db.auth.updateUser({ password });
+  setBusy(button, false, "Save password");
+  if (error) {
+    console.error(error);
+    errorEl.textContent = /different from the old/i.test(error.message)
+      ? "Choose a password you haven’t used for this account."
+      : /reauthenticat/i.test(error.message)
+        ? "For security, sign out, sign in again, then change your password."
+        : error.message;
+    return false;
+  }
+  form.reset();
+  return true;
+}
+
 // --- data ------------------------------------------------------------------
 
 async function loadSubmissions() {
-  setStatus("Loading submissions…");
+  $("dashboard-body").classList.add("is-loading");
+  if (!submissions.length) setStatus("Loading submissions…");
   $("refresh").disabled = true;
   const { data, error } = await db
     .from(SUBMISSIONS_TABLE)
@@ -130,13 +227,15 @@ async function loadSubmissions() {
     .order("submitted_at", { ascending: false })
     .limit(1000);
   $("refresh").disabled = false;
+  $("dashboard-body").classList.remove("is-loading");
   if (error) {
     setStatus(`Couldn’t load submissions: ${error.message}`, true);
     return;
   }
   submissions = data;
+  $("updated-at").textContent = `Updated at ${timeOnly.format(new Date())}`;
   setStatus("");
-  fillInterestFilter();
+  fillFilterOptions();
   render();
 }
 
@@ -155,7 +254,7 @@ async function deleteSubmission(row) {
     if (count === 0) throw new Error("Nothing was deleted. This account may not have permission.");
     submissions = submissions.filter((item) => item.id !== row.id);
     $("detail").close();
-    fillInterestFilter();
+    fillFilterOptions();
     render();
   } catch (error) {
     console.error(error);
@@ -165,62 +264,309 @@ async function deleteSubmission(row) {
   }
 }
 
-// --- rendering -------------------------------------------------------------
+// --- filters ---------------------------------------------------------------
 
-function matches(row) {
-  const query = filters.search.value.trim().toLowerCase();
-  if (query && ![row.full_name, row.email, row.mobile, row.major].some((text) => text?.toLowerCase().includes(query))) {
-    return false;
-  }
-  if (filters.school.value && row.school !== filters.school.value) return false;
-  if (filters.interest.value && !row.interests.includes(filters.interest.value)) return false;
-  if (filters.experience.value && !row.experience_types.includes(filters.experience.value)) return false;
-  if (filters.cv.value && hasStoredCv(row.cv_path) !== (filters.cv.value === "yes")) return false;
-  if (filters.contact.value && row.contact_consent !== (filters.contact.value === "yes")) return false;
+function matchesFilters(row) {
+  const f = Object.fromEntries(Object.entries(filters).map(([name, select]) => [name, select.value]));
+  if (f.university && row.university !== f.university) return false;
+  if (f.school && row.school !== f.school) return false;
+  if (f.interest && !row.interests.includes(f.interest)) return false;
+  if (f.experience && !row.experience_types.includes(f.experience)) return false;
+  if (f.cv && hasStoredCv(row.cv_path) !== (f.cv === "yes")) return false;
+  if (f.contact && row.contact_consent !== (f.contact === "yes")) return false;
   return true;
 }
 
-// Interest options come from the data, grouped by school ("Business: Marketing").
-function fillInterestFilter() {
-  const select = filters.interest;
-  const chosen = select.value;
+// periodsAgo 0 = the selected period up to now, 1 = the one before it.
+function inPeriod(row, days, periodsAgo = 0) {
+  const age = Date.now() - new Date(row.submitted_at).getTime();
+  return age >= periodsAgo * days * DAY_MS && age < (periodsAgo + 1) * days * DAY_MS;
+}
+
+function applyFilters() {
+  const days = Number(filters.period.value);
+  return submissions.filter((row) => matchesFilters(row) && (!days || inPeriod(row, days)));
+}
+
+const activeFilterCount = () => Object.values(filters).filter((select) => select.value).length;
+
+function setFilter(name, value) {
+  filters[name].value = value;
+  visibleCount = PAGE_SIZE;
+  render();
+}
+
+function clearFilters() {
+  for (const select of Object.values(filters)) select.value = "";
+  visibleCount = PAGE_SIZE;
+  render();
+}
+
+// University and interest options come from the data, so new values show up by themselves.
+function fillFilterOptions() {
+  const universities = [...new Set(submissions.map((row) => row.university).filter(Boolean))].sort();
+  replaceOptions(filters.university, universities.map((code) => el("option", { value: code }, universityTitle(code))));
+
   const groups = new Map();
   for (const interest of new Set(submissions.flatMap((row) => row.interests))) {
     const school = interest.includes(":") ? interest.slice(0, interest.indexOf(":")) : "Other";
     groups.set(school, [...(groups.get(school) ?? []), interest]);
   }
-  const optgroups = [...groups.keys()].sort().map((school) =>
-    el("optgroup", { label: school }, groups.get(school).sort().map((interest) => el("option", { value: interest }, areaName(interest))))
+  replaceOptions(
+    filters.interest,
+    [...groups.keys()].sort().map((school) =>
+      el("optgroup", { label: school }, groups.get(school).sort().map((interest) => el("option", { value: interest }, areaName(interest))))
+    )
   );
-  select.replaceChildren(el("option", { value: "" }, "Interest: any"), ...optgroups);
-  select.value = groups.size && [...select.options].some((option) => option.value === chosen) ? chosen : "";
 }
 
-function render() {
-  const rows = submissions.filter(matches);
-  const total = submissions.length;
-  const weekAgo = Date.now() - WEEK_MS;
-  $("stat-total").textContent = total;
-  $("stat-week").textContent = submissions.filter((row) => new Date(row.submitted_at) >= weekAgo).length;
-  $("stat-cv").textContent = submissions.filter((row) => hasStoredCv(row.cv_path)).length;
-  $("stat-contact").textContent = submissions.filter((row) => row.contact_consent).length;
+function replaceOptions(select, options) {
+  const chosen = select.value;
+  select.replaceChildren(el("option", { value: "" }, "All"), ...options);
+  select.value = [...select.options].some((option) => option.value === chosen) ? chosen : "";
+}
 
-  $("result-count").textContent =
-    rows.length === total ? `${total} submission${total === 1 ? "" : "s"}` : `Showing ${rows.length} of ${total} submissions`;
-  $("empty").hidden = rows.length > 0;
-  $("empty").textContent = total
-    ? "No submissions match these filters."
-    : "No submissions yet. They’ll appear here as students fill in the form.";
-  $("rows").replaceChildren(...rows.map(renderRow));
+// --- rendering -------------------------------------------------------------
+
+function render() {
+  currentRows = applyFilters();
+  const active = activeFilterCount();
+  $("filter-summary").textContent = active
+    ? `Showing ${number.format(currentRows.length)} of ${plural(submissions.length, "submission")}`
+    : `All ${plural(submissions.length, "submission")}`;
+  $("clear-filters").hidden = !active;
+  $("toggle-filters").textContent = active ? `Filters (${active})` : "Filters";
+  renderKpis(currentRows);
+  renderTimeline(currentRows);
+  renderCharts(currentRows);
+  renderTable();
+}
+
+function renderKpis(rows) {
+  const total = rows.length;
+  const days = Number(filters.period.value);
+  $("kpi-total").textContent = number.format(total);
+  const totalSub = $("kpi-total-sub");
+  if (days) {
+    const previous = submissions.filter((row) => matchesFilters(row) && inPeriod(row, days, 1)).length;
+    const change = total - previous;
+    totalSub.replaceChildren(
+      change === 0
+        ? "Same as the previous "
+        : el("span", { class: change > 0 ? "delta-up" : "delta-down" }, `${change > 0 ? "▲" : "▼"} ${number.format(Math.abs(change))}`),
+      change === 0 ? `${days} days` : ` vs previous ${days} days`
+    );
+  } else {
+    const lastWeek = rows.filter((row) => inPeriod(row, 7)).length;
+    totalSub.textContent = `${number.format(lastWeek)} in the last 7 days`;
+  }
+
+  const withCv = rows.filter((row) => hasStoredCv(row.cv_path)).length;
+  const failed = rows.filter((row) => row.cv_path && !hasStoredCv(row.cv_path)).length;
+  $("kpi-cv").textContent = number.format(withCv);
+  $("kpi-cv-sub").textContent = `${percent(withCv, total)}% of submissions${failed ? ` · ${failed} failed upload${failed === 1 ? "" : "s"}` : ""}`;
+
+  const open = rows.filter((row) => row.contact_consent).length;
+  $("kpi-contact").textContent = number.format(open);
+  $("kpi-contact-sub").textContent = `${percent(open, total)}% said yes`;
+
+  const universities = countBy(rows, (row) => row.university);
+  const [top] = [...universities].sort((a, b) => b[1] - a[1]);
+  $("kpi-universities").textContent = number.format(universities.size);
+  $("kpi-universities-sub").textContent = top ? `Most from ${top[0]} (${number.format(top[1])})` : "No universities yet";
+}
+
+function countBy(rows, getKeys) {
+  const counts = new Map();
+  for (const row of rows) {
+    for (const key of [].concat(getKeys(row) ?? [])) if (key) counts.set(key, (counts.get(key) ?? 0) + 1);
+  }
+  return counts;
+}
+
+function renderCharts(rows) {
+  const total = rows.length;
+  renderBars($("chart-university"), countBy(rows, (row) => row.university), {
+    total, filter: "university", title: universityTitle, otherLabel: "universities",
+  });
+  renderBars($("chart-interest"), countBy(rows, (row) => row.interests), {
+    total, filter: "interest", label: areaName, title: (key) => key, unit: "student", noteUnit: "selection", otherLabel: "areas", top: 10,
+  });
+  renderBars($("chart-school"), countBy(rows, (row) => row.school), {
+    total, filter: "school", order: ["Business", "Sciences", "Engineering"],
+  });
+  renderBars($("chart-experience"), countBy(rows, (row) => row.experience_types), {
+    total, filter: "experience", unit: "student", order: ["Internship", "Part-time opportunity", "Supervised assignment"],
+  });
+  renderBars($("chart-year"), countBy(rows, (row) => row.year_of_study), { total, order: YEARS });
+}
+
+// Horizontal bars, one colour (one series), value at each bar's tip. Bars with a
+// matching filter are buttons: clicking one filters the whole dashboard.
+function renderBars(container, counts, { total, filter, order, top = TOP_BARS, label = (key) => key, title = label, unit = "submission", noteUnit = unit, otherLabel = "" }) {
+  const items = order
+    ? order.filter((key) => counts.has(key)).map((key) => ({ key, count: counts.get(key) }))
+    : [...counts].map(([key, count]) => ({ key, count })).sort((a, b) => b.count - a.count || a.key.localeCompare(b.key));
+  if (!items.length) {
+    container.replaceChildren(el("p", { class: "chart-empty" }, "Nothing to show for these filters yet."));
+    return;
+  }
+  // The long tail is summarised in a note rather than a bar, so it can't dwarf the leaders.
+  const rest = order ? [] : items.splice(top);
+  const max = Math.max(...items.map((item) => item.count));
+  const bars = items.map((item) => {
+    const fullName = title(item.key);
+    const share = percent(item.count, total);
+    const clickable = Boolean(filter);
+    const bar = el(
+      clickable ? "button" : "div",
+      {
+        type: clickable ? "button" : null,
+        class: `hbar${clickable && filters[filter].value === item.key ? " is-active" : ""}`,
+        "aria-label": `${fullName}: ${plural(item.count, unit)}, ${share}%${clickable ? ". Select to filter by this." : ""}`,
+        onclick: clickable ? () => setFilter(filter, item.key) : null,
+      },
+      el("span", { class: "hbar-label" }, label(item.key)),
+      el(
+        "span",
+        { class: "hbar-bar" },
+        el("span", { class: "hbar-fill", style: `width: calc((100% - 3.5em) * ${item.count / max})` }),
+        el("span", { class: "hbar-value" }, number.format(item.count))
+      )
+    );
+    attachTooltip(bar, () => ({
+      value: plural(item.count, unit),
+      label: fullName,
+      detail: `${share}% of ${plural(total, "submission")}${clickable ? " · click to filter" : ""}`,
+    }));
+    return bar;
+  });
+  const restCount = rest.reduce((sum, item) => sum + item.count, 0);
+  const note =
+    rest.length > 0 &&
+    el("p", { class: "chart-note", title: rest.map((item) => `${title(item.key)}: ${item.count}`).join("\n") },
+      `+ ${rest.length} more ${otherLabel} (${plural(restCount, noteUnit)})`);
+  container.replaceChildren(...[el("div", { class: "hbars" }, bars), note].filter(Boolean));
+}
+
+// Submissions per day (7 or 30 days) or per week (90 days or all time).
+function timelineBuckets(rows) {
+  const days = Number(filters.period.value);
+  const weekly = !days || days > 31;
+  const startOfDay = (date) => {
+    const day = new Date(date);
+    day.setHours(0, 0, 0, 0);
+    return day;
+  };
+  const startOfWeek = (date) => {
+    const day = startOfDay(date);
+    day.setDate(day.getDate() - ((day.getDay() + 6) % 7)); // weeks start on Monday
+    return day;
+  };
+  const bucketStart = weekly ? startOfWeek : startOfDay;
+  const latest = bucketStart(new Date());
+  let count = weekly ? Math.ceil(days / 7) : days;
+  if (!days) {
+    const oldest = rows.length ? Math.min(...rows.map((row) => new Date(row.submitted_at).getTime())) : Date.now();
+    count = Math.min(26, Math.max(8, Math.round((latest - startOfWeek(oldest)) / (7 * DAY_MS)) + 1));
+  }
+  const buckets = [];
+  for (let i = count - 1; i >= 0; i--) {
+    const start = new Date(latest);
+    start.setDate(latest.getDate() - i * (weekly ? 7 : 1));
+    buckets.push({ start, count: 0 });
+  }
+  const byStart = new Map(buckets.map((bucket) => [bucket.start.getTime(), bucket]));
+  for (const row of rows) {
+    const bucket = byStart.get(bucketStart(new Date(row.submitted_at)).getTime());
+    if (bucket) bucket.count += 1;
+  }
+  return { buckets, weekly };
+}
+
+// Round the axis top up so the three gridlines (0, half, top) are whole numbers.
+function niceMax(max) {
+  if (max <= 4) return 4;
+  const half = max / 2;
+  const magnitude = 10 ** Math.floor(Math.log10(half));
+  const step = [1, 2, 5, 10].map((m) => m * magnitude).find((s) => s >= half);
+  return step * 2;
+}
+
+// Column with a 4px rounded top, square at the baseline.
+function columnPath(x, top, width, height) {
+  const r = Math.min(4, width / 2, height);
+  const bottom = top + height;
+  return `M${x},${bottom}V${top + r}Q${x},${top} ${x + r},${top}H${x + width - r}Q${x + width},${top} ${x + width},${top + r}V${bottom}Z`;
+}
+
+function renderTimeline(rows) {
+  const container = $("chart-timeline");
+  const { buckets, weekly } = timelineBuckets(rows);
+  $("timeline-sub").textContent = weekly ? `Per week · last ${buckets.length} weeks` : `Per day · last ${buckets.length} days`;
+
+  const width = Math.max(280, container.clientWidth);
+  const height = 220;
+  const pad = { top: 24, right: 8, bottom: 28, left: 34 };
+  const plotWidth = width - pad.left - pad.right;
+  const plotHeight = height - pad.top - pad.bottom;
+  const max = Math.max(0, ...buckets.map((bucket) => bucket.count));
+  const top = niceMax(max);
+  const y = (value) => pad.top + plotHeight - (value / top) * plotHeight;
+  const band = plotWidth / buckets.length;
+  const columnWidth = Math.min(24, Math.max(3, band * 0.62));
+  const labelEvery = Math.ceil(buckets.length / Math.max(2, Math.floor(plotWidth / 64)));
+  const peak = max > 0 ? buckets.map((bucket) => bucket.count).lastIndexOf(max) : -1;
+
+  const chart = svg("svg", {
+    width,
+    height,
+    viewBox: `0 0 ${width} ${height}`,
+    role: "group",
+    "aria-label": `Submissions ${weekly ? "per week" : "per day"}`,
+  });
+  for (const tick of [0, top / 2, top]) {
+    chart.append(
+      svg("line", { class: tick === 0 ? "axis-line" : "grid-line", x1: pad.left, x2: width - pad.right, y1: y(tick), y2: y(tick) }),
+      svg("text", { class: "tick", x: pad.left - 8, y: y(tick) + 4, "text-anchor": "end" }, number.format(tick))
+    );
+  }
+  buckets.forEach((bucket, i) => {
+    const center = pad.left + band * i + band / 2;
+    const when = weekly ? `Week of ${dateOnly.format(bucket.start)}` : dateOnly.format(bucket.start);
+    // The whole band is the hover/focus target; the column follows it so CSS can highlight it.
+    const hit = svg("rect", {
+      class: "hit",
+      x: pad.left + band * i,
+      y: pad.top,
+      width: band,
+      height: plotHeight,
+      tabindex: "0",
+      role: "img",
+      "aria-label": `${when}: ${plural(bucket.count, "submission")}`,
+    });
+    attachTooltip(hit, () => ({ value: plural(bucket.count, "submission"), label: when }));
+    chart.append(hit);
+    if (bucket.count > 0) {
+      const columnHeight = (bucket.count / top) * plotHeight;
+      chart.append(svg("path", { class: "col", d: columnPath(center - columnWidth / 2, y(bucket.count), columnWidth, columnHeight) }));
+    }
+    if (i === peak) {
+      chart.append(svg("text", { class: "peak", x: center, y: y(bucket.count) - 7, "text-anchor": "middle" }, number.format(bucket.count)));
+    }
+    if ((buckets.length - 1 - i) % labelEvery === 0) {
+      chart.append(svg("text", { class: "tick", x: center, y: height - 8, "text-anchor": "middle" }, shortDate.format(bucket.start)));
+    }
+  });
+  container.replaceChildren(chart);
 }
 
 function chips(values, limit = Infinity) {
   if (!values.length) return el("span", { class: "muted" }, "—");
-  const shown = values.slice(0, limit);
   return el(
     "div",
     { class: "chips" },
-    shown.map((value) => el("span", { class: "chip", title: value }, areaName(value))),
+    values.slice(0, limit).map((value) => el("span", { class: "chip", title: value }, areaName(value))),
     values.length > limit && el("span", { class: "chip chip--more" }, `+${values.length - limit}`)
   );
 }
@@ -235,11 +581,40 @@ function documents(row) {
     items.push(el("span", { class: "tag-warn", title: row.cv_path }, "CV upload failed"));
   }
   const link = safeWebUrl(row.profile_link);
-  if (link) items.push(el("a", { class: "doc-link", href: link, target: "_blank", rel: "noopener noreferrer" }, linkLabel(link)));
+  if (link) {
+    const label = new URL(link).hostname.includes("linkedin.") ? "LinkedIn" : "Profile link";
+    items.push(el("a", { class: "doc-link", href: link, target: "_blank", rel: "noopener noreferrer" }, label));
+  }
   return items.length ? el("div", { class: "docs" }, items) : el("span", { class: "muted" }, "—");
 }
 
-const linkLabel = (url) => (new URL(url).hostname.includes("linkedin.") ? "LinkedIn" : "Profile link");
+const sorters = {
+  newest: (a, b) => b.submitted_at.localeCompare(a.submitted_at),
+  oldest: (a, b) => a.submitted_at.localeCompare(b.submitted_at),
+  name: (a, b) => a.full_name.localeCompare(b.full_name),
+  university: (a, b) => (a.university ?? "~").localeCompare(b.university ?? "~") || a.full_name.localeCompare(b.full_name),
+};
+
+function renderTable() {
+  const query = $("search").value.trim().toLowerCase();
+  const list = currentRows
+    .filter((row) => !query || [row.full_name, row.email, row.mobile, row.major, row.university].some((text) => text?.toLowerCase().includes(query)))
+    .sort(sorters[$("sort").value]);
+
+  $("result-count").textContent = query
+    ? `${number.format(list.length)} of ${plural(currentRows.length, "student")} match your search`
+    : plural(currentRows.length, "student");
+  $("empty").hidden = list.length > 0;
+  $("empty").textContent = !submissions.length
+    ? "No submissions yet. They’ll appear here as students fill in the form."
+    : query
+      ? "No students match your search."
+      : "No students match these filters.";
+  $("rows").replaceChildren(...list.slice(0, visibleCount).map(renderRow));
+  const remaining = list.length - visibleCount;
+  $("show-more").hidden = remaining <= 0;
+  $("show-more").textContent = `Show ${Math.min(PAGE_SIZE, remaining)} more`;
+}
 
 function renderRow(row) {
   const submitted = new Date(row.submitted_at);
@@ -252,7 +627,12 @@ function renderRow(row) {
       el("button", { type: "button", class: "student-button", onclick: () => openDetail(row) }, row.full_name),
       el("span", { class: "sub" }, row.email)
     ),
-    el("td", { "data-label": "School" }, row.school),
+    el(
+      "td",
+      { "data-label": "University", title: row.university ? universityTitle(row.university) : null },
+      row.university ? el("span", { class: "uni-code" }, row.university) : el("span", { class: "muted" }, "—"),
+      el("span", { class: "sub" }, row.school)
+    ),
     el("td", { "data-label": "Program" }, el("span", {}, row.major), el("span", { class: "sub" }, row.year_of_study)),
     el("td", { "data-label": "Interests" }, chips(row.interests, 3)),
     el("td", { "data-label": "Experience" }, row.experience_types.length ? row.experience_types.join(", ") : el("span", { class: "muted" }, "—")),
@@ -274,7 +654,8 @@ function openDetail(row) {
   const fields = [
     ["Email", /^[^\s@]+@[^\s@]+$/.test(row.email) ? el("a", { href: `mailto:${row.email}` }, row.email) : row.email],
     ["Mobile", phone ? el("a", { href: `tel:${phone}` }, row.mobile) : row.mobile],
-    ["School", row.school],
+    ["University", row.university && universityTitle(row.university)],
+    ["School or faculty", row.school],
     ["Major or program", row.major],
     ["Year of study", row.year_of_study],
     ["Interest areas", chips(row.interests)],
@@ -290,6 +671,32 @@ function openDetail(row) {
   $("detail").showModal();
 }
 
+// --- tooltip -----------------------------------------------------------------
+
+function attachTooltip(node, getContent) {
+  const showAt = (x, y) => {
+    const { value, label, detail } = getContent();
+    tooltip.replaceChildren(...[el("strong", {}, value), el("span", {}, label), detail && el("span", {}, detail)].filter(Boolean));
+    tooltip.hidden = false;
+    const { width, height } = tooltip.getBoundingClientRect();
+    const left = x + 14 + width > innerWidth - 8 ? x - width - 14 : x + 14;
+    const top = y - height - 12 < 8 ? y + 16 : y - height - 12;
+    tooltip.style.left = `${Math.max(8, left)}px`;
+    tooltip.style.top = `${top}px`;
+  };
+  node.addEventListener("pointermove", (event) => showAt(event.clientX, event.clientY));
+  node.addEventListener("pointerleave", hideTooltip);
+  node.addEventListener("focus", () => {
+    const box = node.getBoundingClientRect();
+    showAt(box.left + box.width / 2, box.top);
+  });
+  node.addEventListener("blur", hideTooltip);
+}
+
+function hideTooltip() {
+  tooltip.hidden = true;
+}
+
 // --- CSV export --------------------------------------------------------------
 
 function exportCsv() {
@@ -298,7 +705,8 @@ function exportCsv() {
     ["Full name", (row) => row.full_name],
     ["Email", (row) => row.email],
     ["Mobile", (row) => row.mobile],
-    ["School", (row) => row.school],
+    ["University", (row) => row.university && universityTitle(row.university)],
+    ["School or faculty", (row) => row.school],
     ["Major or program", (row) => row.major],
     ["Year of study", (row) => row.year_of_study],
     ["Interest areas", (row) => row.interests.join("; ")],
@@ -318,7 +726,7 @@ function exportCsv() {
     return `"${text.replace(/"/g, '""')}"`;
   };
   const lines = [columns.map(([header]) => cell(header))];
-  for (const row of submissions.filter(matches)) lines.push(columns.map(([, get]) => cell(get(row))));
+  for (const row of currentRows) lines.push(columns.map(([, get]) => cell(get(row))));
   const csv = "﻿" + lines.map((line) => line.join(",")).join("\r\n");
   const link = el("a", {
     href: URL.createObjectURL(new Blob([csv], { type: "text/csv;charset=utf-8" })),
@@ -333,26 +741,93 @@ function exportCsv() {
 if (!window.supabase || !SUPABASE_URL) {
   $("view-loading").textContent = "The dashboard couldn’t load. Check your connection and refresh the page.";
 } else {
-  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY);
+  db = window.supabase.createClient(SUPABASE_URL, SUPABASE_PUBLISHABLE_KEY, { auth: { flowType: "implicit" } });
+
+  if (linkError) {
+    $("login-notice").textContent = "That reset link has expired or was already used. Request a new one with “Forgot password?”.";
+    $("login-notice").hidden = false;
+  }
 
   db.auth.onAuthStateChange((event, session) => {
+    if (event === "PASSWORD_RECOVERY") recoveryMode = true;
     const userId = session?.user.id ?? null;
-    if (event !== "INITIAL_SESSION" && userId === currentUserId) return; // e.g. hourly token refresh
+    // Skip repeats for the same user, e.g. the hourly token refresh.
+    if (!["INITIAL_SESSION", "PASSWORD_RECOVERY"].includes(event) && userId === currentUserId) return;
     currentUserId = userId;
     // Supabase advises not awaiting its own calls inside this callback.
     setTimeout(() => handleSession(session), 0);
   });
 
   $("login-form").addEventListener("submit", signIn);
+  $("forgot-form").addEventListener("submit", sendResetLink);
+  $("recovery-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    if (!(await savePassword(event.target))) return;
+    recoveryMode = false;
+    const { data } = await db.auth.getSession();
+    handleSession(data.session);
+  });
+  $("password-form").addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const done = event.target.querySelector(".notice-box");
+    done.hidden = true;
+    if (!(await savePassword(event.target))) return;
+    done.textContent = "Password updated.";
+    done.hidden = false;
+    setTimeout(() => $("password-dialog").close(), 1500);
+  });
+
   $("refresh").addEventListener("click", loadSubmissions);
   $("export").addEventListener("click", exportCsv);
+  $("clear-filters").addEventListener("click", clearFilters);
+  $("toggle-filters").addEventListener("click", () => {
+    const open = $("filters").classList.toggle("is-open");
+    $("toggle-filters").setAttribute("aria-expanded", String(open));
+  });
   $("detail-delete").addEventListener("click", () => openRow && deleteSubmission(openRow));
-  for (const input of Object.values(filters)) input.addEventListener("input", render);
+  for (const select of Object.values(filters)) {
+    select.addEventListener("change", () => {
+      visibleCount = PAGE_SIZE;
+      render();
+    });
+  }
+  $("search").addEventListener("input", () => {
+    visibleCount = PAGE_SIZE;
+    renderTable();
+  });
+  $("sort").addEventListener("change", renderTable);
+  $("show-more").addEventListener("click", () => {
+    visibleCount += PAGE_SIZE;
+    renderTable();
+  });
+
   document.addEventListener("click", (event) => {
+    if (!event.target.closest(".account-menu")) $("account").open = false;
     const action = event.target.closest("[data-action]")?.dataset.action;
     if (action === "sign-out") db.auth.signOut();
-    if (action === "close-detail") $("detail").close();
+    if (action === "close-dialog") event.target.closest("dialog").close();
+    if (action === "show-forgot") {
+      $("forgot-email").value = $("login-email").value;
+      $("forgot-error").textContent = "";
+      $("forgot-done").hidden = true;
+      show("forgot");
+    }
+    if (action === "show-login") show("login");
+    if (action === "change-password") {
+      $("account").open = false;
+      $("password-form").reset();
+      $("password-form").querySelector(".field-error").textContent = "";
+      $("password-form").querySelector(".notice-box").hidden = true;
+      $("password-dialog").showModal();
+    }
   });
-  // Clicking the dimmed backdrop closes the detail panel.
-  $("detail").addEventListener("click", (event) => event.target === $("detail") && $("detail").close());
+  // Clicking the dimmed backdrop closes a dialog.
+  for (const dialog of document.querySelectorAll("dialog")) {
+    dialog.addEventListener("click", (event) => event.target === dialog && dialog.close());
+  }
+  window.addEventListener("scroll", hideTooltip, { passive: true });
+  // Redraw the time chart at its new width when the window is resized.
+  new ResizeObserver(() => {
+    if (!$("view-dashboard").hidden) renderTimeline(currentRows);
+  }).observe($("chart-timeline"));
 }

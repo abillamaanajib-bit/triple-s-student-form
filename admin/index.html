@@ -22,115 +22,252 @@
         </picture>
         <span>Student submissions</span>
       </div>
-      <div id="account" class="account" hidden>
-        <span id="account-email" class="account-email"></span>
-        <button type="button" class="button-secondary" data-action="sign-out">Sign out</button>
-      </div>
+      <details id="account" class="account-menu" hidden>
+        <summary>
+          <span id="account-initial" class="avatar" aria-hidden="true"></span>
+          <span id="account-email" class="account-email"></span>
+          <span class="sr-only">Account menu</span>
+        </summary>
+        <div class="menu" role="menu">
+          <p id="account-email-menu" class="menu-email"></p>
+          <button type="button" role="menuitem" data-action="change-password">Change password</button>
+          <button type="button" role="menuitem" data-action="sign-out">Sign out</button>
+        </div>
+      </details>
     </div>
   </header>
 
   <main class="admin-page">
     <p id="view-loading" class="center-note">Loading…</p>
 
-    <section id="view-login" class="card login-card" aria-labelledby="login-title" hidden>
+    <!-- Sign in -->
+    <section id="view-login" class="card auth-card" aria-labelledby="login-title" hidden>
       <h1 id="login-title">Staff sign in</h1>
       <p class="muted">For TRIPLE S staff with an @triple-s.me account.</p>
+      <p id="login-notice" class="notice-box" role="status" hidden></p>
       <form id="login-form" novalidate>
         <div class="field">
           <label class="label" for="login-email">Email</label>
           <input id="login-email" type="email" autocomplete="username" spellcheck="false">
         </div>
         <div class="field">
-          <label class="label" for="login-password">Password</label>
+          <div class="label-row">
+            <label class="label" for="login-password">Password</label>
+            <button type="button" class="link-button" data-action="show-forgot">Forgot password?</button>
+          </div>
           <input id="login-password" type="password" autocomplete="current-password">
         </div>
         <p id="login-error" class="field-error" role="alert"></p>
         <button type="submit" id="login-submit">Sign in</button>
       </form>
-      <p class="hint login-help">No account yet? Ask the project owner to add you in Supabase.</p>
+      <p class="hint auth-help">No account yet? Ask the project owner to add you in Supabase.</p>
     </section>
 
-    <section id="view-denied" class="card login-card" aria-labelledby="denied-title" hidden>
+    <!-- Forgot password -->
+    <section id="view-forgot" class="card auth-card" aria-labelledby="forgot-title" hidden>
+      <h1 id="forgot-title">Reset your password</h1>
+      <p class="muted">Enter your @triple-s.me email and we’ll send you a link to set a new password.</p>
+      <form id="forgot-form" novalidate>
+        <div class="field">
+          <label class="label" for="forgot-email">Email</label>
+          <input id="forgot-email" type="email" autocomplete="username" spellcheck="false">
+        </div>
+        <p id="forgot-error" class="field-error" role="alert"></p>
+        <p id="forgot-done" class="notice-box" role="status" hidden></p>
+        <button type="submit" id="forgot-submit">Send reset link</button>
+      </form>
+      <button type="button" class="link-button auth-back" data-action="show-login">Back to sign in</button>
+    </section>
+
+    <!-- New password after following a reset link -->
+    <section id="view-recovery" class="card auth-card" aria-labelledby="recovery-title" hidden>
+      <h1 id="recovery-title">Choose a new password</h1>
+      <p class="muted">Use at least 8 characters.</p>
+      <form id="recovery-form" class="password-form" novalidate>
+        <div class="field">
+          <label class="label" for="recovery-password">New password</label>
+          <input id="recovery-password" name="password" type="password" autocomplete="new-password">
+        </div>
+        <div class="field">
+          <label class="label" for="recovery-confirm">Confirm new password</label>
+          <input id="recovery-confirm" name="confirm" type="password" autocomplete="new-password">
+        </div>
+        <p class="field-error" role="alert"></p>
+        <button type="submit">Save password</button>
+      </form>
+    </section>
+
+    <section id="view-denied" class="card auth-card" aria-labelledby="denied-title" hidden>
       <h1 id="denied-title">No access</h1>
       <p id="denied-detail" class="muted"></p>
       <button type="button" class="button-secondary" data-action="sign-out">Sign out</button>
     </section>
 
+    <!-- Dashboard -->
     <section id="view-dashboard" aria-labelledby="dash-title" hidden>
       <div class="dash-head">
-        <h1 id="dash-title">Student submissions</h1>
+        <div>
+          <h1 id="dash-title">Overview</h1>
+          <p id="updated-at" class="muted dash-sub"></p>
+        </div>
         <div class="dash-actions">
           <button type="button" id="refresh" class="button-secondary">Refresh</button>
           <button type="button" id="export" class="button-secondary">Export CSV</button>
         </div>
       </div>
 
-      <div class="stats">
-        <div class="stat"><p class="stat-label">Total submissions</p><p class="stat-value" id="stat-total">–</p></div>
-        <div class="stat"><p class="stat-label">Last 7 days</p><p class="stat-value" id="stat-week">–</p></div>
-        <div class="stat"><p class="stat-label">With a CV</p><p class="stat-value" id="stat-cv">–</p></div>
-        <div class="stat"><p class="stat-label">Open to contact</p><p class="stat-value" id="stat-contact">–</p></div>
+      <button type="button" id="toggle-filters" class="button-secondary filters-toggle" aria-expanded="false" aria-controls="filters">Filters</button>
+      <div id="filters" class="filters card" role="group" aria-label="Filters">
+        <label class="filter">
+          <span>Period</span>
+          <select id="filter-period">
+            <option value="">All time</option>
+            <option value="7">Last 7 days</option>
+            <option value="30">Last 30 days</option>
+            <option value="90">Last 90 days</option>
+          </select>
+        </label>
+        <label class="filter">
+          <span>University</span>
+          <select id="filter-university"><option value="">All</option></select>
+        </label>
+        <label class="filter">
+          <span>School or faculty</span>
+          <select id="filter-school">
+            <option value="">All</option>
+            <option>Business</option>
+            <option>Sciences</option>
+            <option>Engineering</option>
+          </select>
+        </label>
+        <label class="filter">
+          <span>Interest area</span>
+          <select id="filter-interest"><option value="">All</option></select>
+        </label>
+        <label class="filter">
+          <span>Experience</span>
+          <select id="filter-experience">
+            <option value="">All</option>
+            <option>Internship</option>
+            <option>Part-time opportunity</option>
+            <option>Supervised assignment</option>
+          </select>
+        </label>
+        <label class="filter">
+          <span>CV</span>
+          <select id="filter-cv">
+            <option value="">Any</option>
+            <option value="yes">Has a CV</option>
+            <option value="no">No CV</option>
+          </select>
+        </label>
+        <label class="filter">
+          <span>Contact</span>
+          <select id="filter-contact">
+            <option value="">Any</option>
+            <option value="yes">Open to contact</option>
+            <option value="no">Not open</option>
+          </select>
+        </label>
       </div>
-
-      <div class="toolbar card" role="search">
-        <div class="toolbar-search">
-          <label class="sr-only" for="filter-search">Search</label>
-          <input id="filter-search" type="search" placeholder="Search name, email, phone or program" autocomplete="off">
-        </div>
-        <label class="sr-only" for="filter-school">School</label>
-        <select id="filter-school">
-          <option value="">School: any</option>
-          <option>Business</option>
-          <option>Sciences</option>
-          <option>Engineering</option>
-        </select>
-        <label class="sr-only" for="filter-interest">Interest area</label>
-        <select id="filter-interest">
-          <option value="">Interest: any</option>
-        </select>
-        <label class="sr-only" for="filter-experience">Experience type</label>
-        <select id="filter-experience">
-          <option value="">Experience: any</option>
-          <option>Internship</option>
-          <option>Part-time opportunity</option>
-          <option>Supervised assignment</option>
-        </select>
-        <label class="sr-only" for="filter-cv">CV</label>
-        <select id="filter-cv">
-          <option value="">CV: any</option>
-          <option value="yes">Has a CV</option>
-          <option value="no">No CV</option>
-        </select>
-        <label class="sr-only" for="filter-contact">Contact</label>
-        <select id="filter-contact">
-          <option value="">Contact: any</option>
-          <option value="yes">Open to contact</option>
-          <option value="no">Not open to contact</option>
-        </select>
-      </div>
+      <p class="filter-summary">
+        <span id="filter-summary"></span>
+        <button type="button" id="clear-filters" class="link-button" hidden>Clear filters</button>
+      </p>
 
       <p id="status" class="status" role="status"></p>
 
-      <div class="card table-card">
-        <p id="result-count" class="result-count"></p>
-        <table class="submissions">
-          <thead>
-            <tr>
-              <th scope="col">Student</th>
-              <th scope="col">School</th>
-              <th scope="col">Program</th>
-              <th scope="col">Interests</th>
-              <th scope="col">Experience</th>
-              <th scope="col">Documents</th>
-              <th scope="col">Submitted</th>
-            </tr>
-          </thead>
-          <tbody id="rows"></tbody>
-        </table>
-        <p id="empty" class="empty" hidden></p>
+      <div id="dashboard-body" class="dashboard-body">
+        <div class="kpis">
+          <div class="kpi">
+            <p class="kpi-label">Submissions</p>
+            <p class="kpi-value" id="kpi-total">–</p>
+            <p class="kpi-sub" id="kpi-total-sub"></p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">CVs received</p>
+            <p class="kpi-value" id="kpi-cv">–</p>
+            <p class="kpi-sub" id="kpi-cv-sub"></p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">Open to contact</p>
+            <p class="kpi-value" id="kpi-contact">–</p>
+            <p class="kpi-sub" id="kpi-contact-sub"></p>
+          </div>
+          <div class="kpi">
+            <p class="kpi-label">Universities</p>
+            <p class="kpi-value" id="kpi-universities">–</p>
+            <p class="kpi-sub" id="kpi-universities-sub"></p>
+          </div>
+        </div>
+
+        <div class="charts">
+          <figure class="chart-card chart-wide">
+            <figcaption><h2>Submissions over time</h2><p id="timeline-sub" class="muted"></p></figcaption>
+            <div id="chart-timeline" class="timeline"></div>
+          </figure>
+          <figure class="chart-card chart-half">
+            <figcaption><h2>By university</h2><p class="muted">Click a bar to filter</p></figcaption>
+            <div id="chart-university"></div>
+          </figure>
+          <figure class="chart-card chart-half">
+            <figcaption><h2>Top interest areas</h2><p class="muted">Students can pick several</p></figcaption>
+            <div id="chart-interest"></div>
+          </figure>
+          <figure class="chart-card chart-third">
+            <figcaption><h2>School or faculty</h2></figcaption>
+            <div id="chart-school"></div>
+          </figure>
+          <figure class="chart-card chart-third">
+            <figcaption><h2>Experience type</h2></figcaption>
+            <div id="chart-experience"></div>
+          </figure>
+          <figure class="chart-card chart-third">
+            <figcaption><h2>Year of study</h2></figcaption>
+            <div id="chart-year"></div>
+          </figure>
+        </div>
+
+        <section class="card students" aria-labelledby="students-title">
+          <div class="students-head">
+            <div>
+              <h2 id="students-title">Students</h2>
+              <p id="result-count" class="muted"></p>
+            </div>
+            <div class="students-tools">
+              <label class="sr-only" for="search">Search students</label>
+              <input id="search" type="search" placeholder="Search name, email, phone, program" autocomplete="off">
+              <label class="sr-only" for="sort">Sort</label>
+              <select id="sort">
+                <option value="newest">Newest first</option>
+                <option value="oldest">Oldest first</option>
+                <option value="name">Name A–Z</option>
+                <option value="university">University A–Z</option>
+              </select>
+            </div>
+          </div>
+          <table class="submissions">
+            <thead>
+              <tr>
+                <th scope="col">Student</th>
+                <th scope="col">University</th>
+                <th scope="col">Program</th>
+                <th scope="col">Interests</th>
+                <th scope="col">Experience</th>
+                <th scope="col">Documents</th>
+                <th scope="col">Submitted</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <p id="empty" class="empty" hidden></p>
+          <div class="show-more"><button type="button" id="show-more" class="button-secondary" hidden></button></div>
+        </section>
       </div>
     </section>
   </main>
+
+  <div id="tooltip" class="tooltip" hidden></div>
 
   <dialog id="detail" class="detail" aria-labelledby="detail-name">
     <div class="detail-head">
@@ -138,15 +275,38 @@
         <h2 id="detail-name"></h2>
         <p id="detail-meta" class="muted"></p>
       </div>
-      <button type="button" class="icon-button" data-action="close-detail" aria-label="Close">
+      <button type="button" class="icon-button" data-action="close-dialog" aria-label="Close">
         <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
       </button>
     </div>
     <dl id="detail-fields" class="detail-fields"></dl>
     <div class="detail-actions">
       <button type="button" id="detail-delete" class="button-danger">Delete submission</button>
-      <button type="button" class="button-secondary" data-action="close-detail">Close</button>
+      <button type="button" class="button-secondary" data-action="close-dialog">Close</button>
     </div>
+  </dialog>
+
+  <dialog id="password-dialog" class="detail small-dialog" aria-labelledby="password-title">
+    <div class="detail-head">
+      <h2 id="password-title">Change password</h2>
+      <button type="button" class="icon-button" data-action="close-dialog" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <form id="password-form" class="password-form dialog-body" novalidate>
+      <div class="field">
+        <label class="label" for="new-password">New password</label>
+        <input id="new-password" name="password" type="password" autocomplete="new-password">
+        <p class="hint">At least 8 characters.</p>
+      </div>
+      <div class="field">
+        <label class="label" for="confirm-password">Confirm new password</label>
+        <input id="confirm-password" name="confirm" type="password" autocomplete="new-password">
+      </div>
+      <p class="field-error" role="alert"></p>
+      <p class="notice-box" role="status" hidden></p>
+      <button type="submit">Save password</button>
+    </form>
   </dialog>
 </body>
 </html>

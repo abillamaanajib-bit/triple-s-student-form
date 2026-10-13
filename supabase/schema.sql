@@ -11,6 +11,7 @@ create table if not exists public.student_interest_submissions (
   full_name          text not null check (char_length(full_name) between 1 and 120),
   email              text not null check (char_length(email) between 3 and 254),
   mobile             text not null check (char_length(mobile) between 7 and 20),
+  university         text check (char_length(university) <= 120),
   school             text not null check (char_length(school) <= 60),
   major              text not null check (char_length(major) between 1 and 120),
   year_of_study      text not null check (char_length(year_of_study) <= 60),

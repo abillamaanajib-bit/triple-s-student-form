@@ -11,6 +11,7 @@ const CV_TYPES = {
 const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]{2,}$/;
 const PHONE_PATTERN = /^\+?[\d\s().-]+$/;
 const BAD_LINK = "Enter a full link, e.g. https://www.linkedin.com/in/your-name.";
+const OTHER_UNIVERSITY = "other";
 
 const form = document.getElementById("interest-form");
 const summary = document.getElementById("error-summary");
@@ -39,7 +40,10 @@ const validators = {
       ? ""
       : "Enter a valid mobile number using digits, spaces and an optional + country code.";
   },
-  school: () => (value("school") ? "" : "Select your school."),
+  university: () => (value("university") ? "" : "Select your university."),
+  university_other: () =>
+    value("university") === OTHER_UNIVERSITY && !value("university_other") ? "Enter your university’s name." : "",
+  school: () => (value("school") ? "" : "Select your school or faculty."),
   major: () => (value("major") ? "" : "Enter your major or program."),
   year_of_study: () => (value("year_of_study") ? "" : "Select your current year of study."),
   available_until: () => {
@@ -102,6 +106,18 @@ function normalizeLink() {
   if (link && !/^[a-z][a-z\d+.-]*:\/\//i.test(link)) input.value = `https://${link}`;
 }
 
+function fillUniversities() {
+  const select = form.elements.university;
+  for (const [code, name] of UNIVERSITIES) select.append(new Option(`${code} – ${name}`, code));
+  select.append(new Option("Other (not listed)", OTHER_UNIVERSITY));
+}
+
+function toggleOtherUniversity() {
+  const isOther = value("university") === OTHER_UNIVERSITY;
+  form.querySelector('[data-field="university_other"]').hidden = !isOther;
+  if (!isOther && hasError("university_other")) validate("university_other");
+}
+
 function highlightSchoolGroup() {
   const school = value("school");
   for (const group of form.querySelectorAll(".area-group")) {
@@ -132,6 +148,7 @@ function buildRecord() {
     full_name: value("full_name"),
     email: value("email"),
     mobile: value("mobile"),
+    university: value("university") === OTHER_UNIVERSITY ? value("university_other") : value("university"),
     school: value("school"),
     major: value("major"),
     year_of_study: value("year_of_study"),
@@ -184,7 +201,10 @@ async function saveSubmission() {
 
 // Validate when a field is finished with ("change" skips fields the student
 // only tabbed past), then re-check live while they fix an error.
+fillUniversities();
+
 form.addEventListener("change", ({ target }) => {
+  if (target.name === "university") toggleOtherUniversity();
   if (target.name === "school") highlightSchoolGroup();
   if (target.name === "profile_link") normalizeLink();
   const name = target.name === "available_from" ? "available_until" : target.name;

@@ -59,8 +59,23 @@
       <section class="card" aria-labelledby="s-studies">
         <h2 id="s-studies">Your studies</h2>
 
+        <div class="field" data-field="university">
+          <label class="label" for="f-university">University</label>
+          <!-- Options are filled in from UNIVERSITIES in config.js. -->
+          <select id="f-university" name="university" aria-describedby="university-error">
+            <option value="">Select your university…</option>
+          </select>
+          <p class="field-error" id="university-error"></p>
+        </div>
+
+        <div class="field" data-field="university_other" hidden>
+          <label class="label" for="f-university-other">Your university’s name</label>
+          <input id="f-university-other" name="university_other" type="text" maxlength="120" aria-describedby="university_other-error">
+          <p class="field-error" id="university_other-error"></p>
+        </div>
+
         <fieldset class="field" data-field="school" aria-describedby="school-error">
-          <legend class="label">School</legend>
+          <legend class="label">School or faculty</legend>
           <div class="choices choices--3">
             <label class="choice"><input id="f-school" type="radio" name="school" value="Business"> Business</label>
             <label class="choice"><input type="radio" name="school" value="Sciences"> Sciences</label>
