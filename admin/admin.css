@@ -1144,6 +1144,51 @@ button.hbar {
   }
 }
 
+/* Phones and small tablets: finger-sized targets, and 16px text in fields so
+   iPhones don't zoom the page when one is tapped. */
+@media (max-width: 760px) {
+  .filter select,
+  .students-tools input,
+  .students-tools select,
+  .copy-row input,
+  .auth-card input {
+    font-size: 16px;
+  }
+
+  .hbar {
+    min-height: 44px;
+  }
+
+  .student-button {
+    padding: 10px 0;
+  }
+
+  .link-button {
+    padding: 11px 0;
+  }
+
+  .students-tools {
+    flex-wrap: wrap;
+  }
+
+  .students-tools input {
+    flex-basis: 100%;
+  }
+
+  .students-tools select {
+    flex: 1;
+  }
+
+  .detail-actions {
+    flex-direction: column-reverse;
+  }
+
+  .detail-actions button {
+    width: 100%;
+    min-height: 46px;
+  }
+}
+
 /* CV preview page (preview.html) */
 
 .preview-body {

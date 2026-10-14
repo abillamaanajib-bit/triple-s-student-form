@@ -684,9 +684,12 @@ function attachTooltip(node, getContent) {
     tooltip.style.left = `${Math.max(8, left)}px`;
     tooltip.style.top = `${top}px`;
   };
-  node.addEventListener("pointermove", (event) => showAt(event.clientX, event.clientY));
+  node.addEventListener("pointermove", (event) => {
+    if (event.pointerType === "mouse") showAt(event.clientX, event.clientY);
+  });
   node.addEventListener("pointerleave", hideTooltip);
   node.addEventListener("focus", () => {
+    if (!node.matches(":focus-visible")) return; // a tap also focuses; only keyboard focus gets the tooltip
     const box = node.getBoundingClientRect();
     showAt(box.left + box.width / 2, box.top);
   });
@@ -849,7 +852,18 @@ if (!window.supabase || !SUPABASE_URL) {
   for (const dialog of document.querySelectorAll("dialog")) {
     dialog.addEventListener("click", (event) => event.target === dialog && dialog.close());
   }
-  window.addEventListener("scroll", hideTooltip, { passive: true });
+  // Nothing floating is left covering the page: the tooltip and the account menu
+  // close on scroll, on a tap elsewhere and on Escape.
+  window.addEventListener("scroll", () => {
+    hideTooltip();
+    $("account").open = false;
+  }, { passive: true });
+  document.addEventListener("touchstart", hideTooltip, { passive: true });
+  document.addEventListener("keydown", (event) => {
+    if (event.key !== "Escape" || !$("account").open) return;
+    $("account").open = false;
+    $("account").querySelector("summary").focus();
+  });
   // Redraw the time chart at its new width when the window is resized.
   new ResizeObserver(() => {
     if (!$("view-dashboard").hidden) renderTimeline(currentRows);

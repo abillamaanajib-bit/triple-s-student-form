@@ -628,6 +628,10 @@ input[type="file"]:focus-visible {
     width: 100%;
     min-height: 46px;
   }
+
+  .chosen-chip {
+    min-height: 40px;
+  }
 }
 
 /* Errors */
@@ -785,6 +789,12 @@ button[type="submit"]:disabled {
   border-radius: var(--radius-sm);
   background: var(--surface-2);
   font-size: 0.875rem;
+}
+
+@media (max-width: 760px) {
+  input[type="file"] {
+    font-size: 16px;
+  }
 }
 
 @media (max-width: 480px) {
