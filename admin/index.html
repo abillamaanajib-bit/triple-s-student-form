@@ -111,6 +111,7 @@
           <p id="updated-at" class="muted dash-sub"></p>
         </div>
         <div class="dash-actions">
+          <button type="button" class="button-primary" data-action="share">Share form</button>
           <button type="button" id="refresh" class="button-secondary">Refresh</button>
           <button type="button" id="export" class="button-secondary">Export CSV</button>
         </div>
@@ -283,6 +284,33 @@
     <div class="detail-actions">
       <button type="button" id="detail-delete" class="button-danger">Delete submission</button>
       <button type="button" class="button-secondary" data-action="close-dialog">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="share-dialog" class="detail small-dialog" aria-labelledby="share-title">
+    <div class="detail-head">
+      <div>
+        <h2 id="share-title">Share the form</h2>
+        <p class="muted">Students scan the code or open the link to apply.</p>
+      </div>
+      <button type="button" class="icon-button" data-action="close-dialog" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dialog-body share-body">
+      <img class="share-qr" src="../qr/triple-s-form-qr.png" alt="QR code that opens the student form" width="220" height="220">
+      <label class="label" for="share-link">Form link</label>
+      <div class="copy-row">
+        <input id="share-link" type="text" readonly>
+        <button type="button" id="copy-link" class="button-secondary">Copy link</button>
+      </div>
+      <p id="copy-status" class="copy-status" role="status"></p>
+      <p class="label share-label">Download</p>
+      <div class="share-downloads">
+        <a class="button-secondary" href="../qr/triple-s-form-qr.png" download="TRIPLE-S-form-QR.png">QR code · PNG</a>
+        <a class="button-secondary" href="../qr/triple-s-form-qr.svg" download="TRIPLE-S-form-QR.svg">QR code · SVG for print</a>
+        <a class="button-secondary" href="../qr/triple-s-form-poster-A5.pdf" download="TRIPLE-S-form-poster-A5.pdf">A5 poster · PDF</a>
+      </div>
     </div>
   </dialog>
 

@@ -118,6 +118,42 @@ function toggleOtherUniversity() {
   if (!isOther && hasError("university_other")) validate("university_other");
 }
 
+// The interest areas live in a dropdown; its button and the chips below it
+// show what's ticked, and each chip can untick its area.
+const interestsDropdown = document.getElementById("interests-dropdown");
+
+function updateInterests() {
+  const chosen = [...form.querySelectorAll('[name="interests"]:checked')];
+  const summaryText = document.getElementById("interests-summary");
+  summaryText.textContent = chosen.length
+    ? `${chosen.length} area${chosen.length === 1 ? "" : "s"} selected`
+    : "Select areas…";
+  summaryText.classList.toggle("is-placeholder", !chosen.length);
+  const chips = chosen.map((input) => {
+    const name = input.parentElement.textContent.trim();
+    const chip = document.createElement("button");
+    chip.type = "button";
+    chip.className = "chosen-chip";
+    chip.setAttribute("aria-label", `Remove ${name}`);
+    const cross = document.createElement("span");
+    cross.setAttribute("aria-hidden", "true");
+    cross.textContent = "×";
+    chip.append(name, cross);
+    chip.addEventListener("click", () => {
+      input.checked = false;
+      updateInterests();
+    });
+    return chip;
+  });
+  document.getElementById("interests-chosen").replaceChildren(...chips);
+}
+
+function closeInterests() {
+  if (!interestsDropdown.open) return;
+  interestsDropdown.open = false;
+  interestsDropdown.querySelector("summary").focus({ preventScroll: true });
+}
+
 function highlightSchoolGroup() {
   const school = value("school");
   for (const group of form.querySelectorAll(".area-group")) {
@@ -202,8 +238,16 @@ async function saveSubmission() {
 // Validate when a field is finished with ("change" skips fields the student
 // only tabbed past), then re-check live while they fix an error.
 fillUniversities();
+updateInterests();
+
+interestsDropdown.querySelector(".dropdown-done").addEventListener("click", closeInterests);
+interestsDropdown.addEventListener("keydown", (event) => event.key === "Escape" && closeInterests());
+document.addEventListener("click", (event) => {
+  if (interestsDropdown.open && !interestsDropdown.contains(event.target)) interestsDropdown.open = false;
+});
 
 form.addEventListener("change", ({ target }) => {
+  if (target.name === "interests") updateInterests();
   if (target.name === "university") toggleOtherUniversity();
   if (target.name === "school") highlightSchoolGroup();
   if (target.name === "profile_link") normalizeLink();

@@ -697,6 +697,28 @@ function hideTooltip() {
   tooltip.hidden = true;
 }
 
+// --- share the form ----------------------------------------------------------
+
+// The form lives one folder up from this dashboard, wherever the site is hosted.
+const FORM_URL = new URL("../", location.href).href;
+
+function openShare() {
+  $("share-link").value = FORM_URL;
+  $("copy-status").textContent = "";
+  $("share-dialog").showModal();
+}
+
+async function copyFormLink() {
+  try {
+    await navigator.clipboard.writeText(FORM_URL);
+  } catch {
+    // Older browsers, or clipboard permission refused: copy from the selected box instead.
+    $("share-link").select();
+    document.execCommand("copy");
+  }
+  $("copy-status").textContent = "Link copied. Paste it into an email, chat or post.";
+}
+
 // --- CSV export --------------------------------------------------------------
 
 function exportCsv() {
@@ -777,6 +799,7 @@ if (!window.supabase || !SUPABASE_URL) {
     setTimeout(() => $("password-dialog").close(), 1500);
   });
 
+  $("copy-link").addEventListener("click", copyFormLink);
   $("refresh").addEventListener("click", loadSubmissions);
   $("export").addEventListener("click", exportCsv);
   $("clear-filters").addEventListener("click", clearFilters);
@@ -813,6 +836,7 @@ if (!window.supabase || !SUPABASE_URL) {
       show("forgot");
     }
     if (action === "show-login") show("login");
+    if (action === "share") openShare();
     if (action === "change-password") {
       $("account").open = false;
       $("password-form").reset();

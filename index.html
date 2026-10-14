@@ -110,42 +110,53 @@
 
         <fieldset class="field" aria-describedby="interests-hint">
           <legend class="label">Which areas are you interested in? <span class="optional">Optional</span></legend>
-          <p class="hint" id="interests-hint">Select all that apply. You can choose areas from any school.</p>
+          <p class="hint" id="interests-hint">Open the list and tick all that apply. You can choose areas from any school.</p>
 
-          <fieldset class="area-group" data-school="Business">
-            <legend>Business <span class="badge" hidden>Your school</span></legend>
-            <div class="choices">
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Marketing"> Marketing</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Business Development"> Business Development</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Finance and Data Entry"> Finance and Data Entry</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Community Onboarding"> Community Onboarding</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Customer Support"> Customer Support</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Human Resources"> Human Resources</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Business: Inventory Support"> Inventory Support</label>
-            </div>
-          </fieldset>
+          <details class="dropdown" id="interests-dropdown">
+            <summary aria-describedby="interests-hint">
+              <span id="interests-summary">Select areas…</span>
+              <svg class="dropdown-chevron" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M6 9l6 6 6-6"/></svg>
+            </summary>
+            <div class="dropdown-panel">
+              <fieldset class="area-group" data-school="Business">
+                <legend>Business <span class="badge" hidden>Your school</span></legend>
+                <div class="options">
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Marketing"> Marketing</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Business Development"> Business Development</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Finance and Data Entry"> Finance and Data Entry</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Community Onboarding"> Community Onboarding</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Customer Support"> Customer Support</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Human Resources"> Human Resources</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Business: Inventory Support"> Inventory Support</label>
+                </div>
+              </fieldset>
 
-          <fieldset class="area-group" data-school="Sciences">
-            <legend>Sciences <span class="badge" hidden>Your school</span></legend>
-            <div class="choices">
-              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Data Digitization"> Data Digitization</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Data Analytics"> Data Analytics</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Sciences: AI and Automation"> AI and Automation</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Sciences: IT and Digital Systems"> IT and Digital Systems</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Sciences: Research"> Research</label>
-            </div>
-          </fieldset>
+              <fieldset class="area-group" data-school="Sciences">
+                <legend>Sciences <span class="badge" hidden>Your school</span></legend>
+                <div class="options">
+                  <label class="option"><input type="checkbox" name="interests" value="Sciences: Data Digitization"> Data Digitization</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Sciences: Data Analytics"> Data Analytics</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Sciences: AI and Automation"> AI and Automation</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Sciences: IT and Digital Systems"> IT and Digital Systems</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Sciences: Research"> Research</label>
+                </div>
+              </fieldset>
 
-          <fieldset class="area-group" data-school="Engineering">
-            <legend>Engineering <span class="badge" hidden>Your school</span></legend>
-            <div class="choices">
-              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Civil Engineering"> Civil Engineering</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Access Control and Connected Devices"> Access Control and Connected Devices</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Software Engineering and Integration"> Software Engineering and Integration</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Facility Management"> Facility Management</label>
-              <label class="choice"><input type="checkbox" name="interests" value="Engineering: Technical Site Coordination"> Technical Site Coordination</label>
+              <fieldset class="area-group" data-school="Engineering">
+                <legend>Engineering <span class="badge" hidden>Your school</span></legend>
+                <div class="options">
+                  <label class="option"><input type="checkbox" name="interests" value="Engineering: Civil Engineering"> Civil Engineering</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Engineering: Access Control and Connected Devices"> Access Control and Connected Devices</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Engineering: Software Engineering and Integration"> Software Engineering and Integration</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Engineering: Facility Management"> Facility Management</label>
+                  <label class="option"><input type="checkbox" name="interests" value="Engineering: Technical Site Coordination"> Technical Site Coordination</label>
+                </div>
+  
+              <div class="dropdown-footer"><button type="button" class="dropdown-done">Done</button></div>
             </div>
-          </fieldset>
+          </details>
+          <div id="interests-chosen" class="chosen" aria-live="polite"></div>
+        </fieldset>
         </fieldset>
 
         <fieldset class="field" aria-describedby="experience-hint">

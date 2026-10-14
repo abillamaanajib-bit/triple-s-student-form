@@ -1061,6 +1061,89 @@ button.hbar {
   padding: 16px 24px 20px;
 }
 
+/* Share the form (QR code, link, downloads) */
+
+.button-primary {
+  min-height: 40px;
+  padding: 8px 16px;
+  border: 0;
+  border-radius: var(--radius-sm);
+  background: var(--go-gradient);
+  color: var(--on-go);
+  font: inherit;
+  font-size: 0.875rem;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.button-primary:hover {
+  background: linear-gradient(rgb(4 43 48 / 0.08), rgb(4 43 48 / 0.08)), var(--go-gradient);
+}
+
+.button-primary:focus-visible {
+  outline: 3px solid var(--focus-ring);
+  outline-offset: 2px;
+}
+
+.share-qr {
+  display: block;
+  width: min(220px, 70%);
+  height: auto;
+  margin: 0 auto 20px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: #fff;
+}
+
+.copy-row {
+  display: flex;
+  gap: 8px;
+}
+
+.copy-row input {
+  flex: 1;
+  min-width: 0;
+  font-size: 0.875rem;
+}
+
+.copy-status {
+  min-height: 1.25em;
+  margin: 6px 0 0;
+  color: var(--positive);
+  font-size: 0.875rem;
+  font-weight: 600;
+}
+
+.share-label {
+  margin-top: 14px;
+}
+
+.share-downloads {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.share-downloads a {
+  justify-content: center;
+}
+
+@media (max-width: 600px) {
+  .dash-actions {
+    flex-wrap: wrap;
+    width: 100%;
+  }
+
+  .dash-actions > * {
+    flex: 1;
+  }
+
+  .copy-row {
+    flex-direction: column;
+  }
+}
+
 /* CV preview page (preview.html) */
 
 .preview-body {
