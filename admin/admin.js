@@ -123,6 +123,11 @@ async function handleSession(session) {
     return;
   }
   show("dashboard");
+  currentUserEmail = session.user.email;
+  // "Manage team" only for admins (the server checks again on every change).
+  db.rpc("is_admin").then(({ data }) => {
+    $("menu-team").hidden = data !== true;
+  });
   await loadSubmissions();
 }
 
@@ -135,6 +140,7 @@ function setAccount(email) {
 function clearData() {
   submissions = [];
   currentRows = [];
+  $("menu-team").hidden = true;
   $("rows").replaceChildren();
   for (const dialog of document.querySelectorAll("dialog[open]")) dialog.close();
 }
@@ -700,6 +706,141 @@ function hideTooltip() {
   tooltip.hidden = true;
 }
 
+// --- team (staff accounts) -------------------------------------------------
+// Admins only. Account changes go through the staff-admin Edge Function, which
+// holds the secret key and re-checks that the caller is an admin.
+
+let currentUserEmail = "";
+
+async function teamRequest(action, details = {}) {
+  const { data, error } = await db.functions.invoke("staff-admin", { body: { action, ...details } });
+  if (error) {
+    // The function's own message (e.g. "That email already exists") is in the response body.
+    const message = await error.context?.json?.().then((body) => body.error).catch(() => null);
+    throw new Error(message || "The team service isn’t reachable. Check that the staff-admin function is deployed.");
+  }
+  return data;
+}
+
+// 14 characters from letters and digits that can't be confused (no 0/O, 1/l/I).
+function generatePassword() {
+  const chars = "ABCDEFGHJKLMNPQRSTUVWXYZabcdefghijkmnopqrstuvwxyz23456789";
+  const limit = 256 - (256 % chars.length); // reject values that would bias the pick
+  let password = "";
+  while (password.length < 14) {
+    for (const byte of crypto.getRandomValues(new Uint8Array(32))) {
+      if (byte < limit && password.length < 14) password += chars[byte % chars.length];
+    }
+  }
+  return password;
+}
+
+function showTempPassword(message, password) {
+  $("team-notice-text").textContent = message;
+  $("team-notice-password").value = password;
+  $("team-notice").hidden = false;
+  $("team-notice").scrollIntoView({ block: "nearest", behavior: "smooth" });
+}
+
+async function openTeam() {
+  $("account").open = false;
+  $("team-add").reset();
+  $("team-add").querySelector(".field-error").textContent = "";
+  $("team-password").value = generatePassword();
+  $("team-notice").hidden = true;
+  $("team-dialog").showModal();
+  await loadTeam();
+}
+
+async function loadTeam() {
+  setTeamStatus("Loading staff accounts…");
+  try {
+    const { users } = await teamRequest("list");
+    setTeamStatus("");
+    $("team-list").replaceChildren(...users.map(renderTeamMember));
+  } catch (error) {
+    setTeamStatus(error.message, true);
+  }
+}
+
+function setTeamStatus(message, isError = false) {
+  $("team-status").textContent = message;
+  $("team-status").classList.toggle("is-error", isError);
+}
+
+function renderTeamMember(user) {
+  const isMe = user.email.toLowerCase() === currentUserEmail.toLowerCase();
+  const lastSeen = user.last_sign_in_at ? `Last signed in ${dateOnly.format(new Date(user.last_sign_in_at))}` : "Hasn’t signed in yet";
+  const act = (label, action, extra = {}) =>
+    el("button", { type: "button", class: extra.danger ? "button-danger" : "button-secondary", onclick: () => teamAction(action, user) }, label);
+  return el(
+    "li",
+    { class: "team-member" },
+    el(
+      "div",
+      { class: "team-member-info" },
+      el("span", { class: "team-email" }, user.email, isMe && el("span", { class: "muted" }, " (you)")),
+      el("span", { class: "sub" }, `Added ${dateOnly.format(new Date(user.created_at))} · ${lastSeen}`),
+      user.is_admin && el("span", { class: "chip admin-chip" }, "Admin")
+    ),
+    el(
+      "div",
+      { class: "team-member-actions" },
+      act("Reset password", "reset"),
+      !isMe && act(user.is_admin ? "Remove admin" : "Make admin", "toggle-admin"),
+      !isMe && act("Remove", "delete", { danger: true })
+    )
+  );
+}
+
+async function teamAction(action, user) {
+  try {
+    if (action === "reset") {
+      if (!confirm(`Give ${user.email} a new temporary password? Their current password will stop working.`)) return;
+      const password = generatePassword();
+      await teamRequest("set_password", { user_id: user.id, password });
+      showTempPassword(`New temporary password for ${user.email}:`, password);
+    } else if (action === "toggle-admin") {
+      const making = !user.is_admin;
+      if (!confirm(making ? `Let ${user.email} add and remove staff accounts?` : `Stop ${user.email} from managing staff accounts?`)) return;
+      await teamRequest("set_admin", { user_id: user.id, is_admin: making });
+    } else if (action === "delete") {
+      if (!confirm(`Remove ${user.email}? They won’t be able to sign in any more. Submissions aren’t affected.`)) return;
+      await teamRequest("delete", { user_id: user.id });
+    }
+    await loadTeam();
+  } catch (error) {
+    alert(error.message);
+  }
+}
+
+async function addStaffMember(event) {
+  event.preventDefault();
+  const form = event.target;
+  const errorEl = form.querySelector(".field-error");
+  const button = form.querySelector('button[type="submit"]');
+  const email = form.elements.email.value.trim().toLowerCase();
+  const password = form.elements.password.value;
+  errorEl.textContent = !/^[^\s@]+@triple-s\.me$/.test(email)
+    ? "Use their @triple-s.me email address."
+    : password.length < MIN_PASSWORD
+      ? `The password needs at least ${MIN_PASSWORD} characters.`
+      : "";
+  if (errorEl.textContent) return;
+  setBusy(button, true, "Adding…");
+  try {
+    await teamRequest("create", { email, password, is_admin: form.elements.is_admin.checked });
+    showTempPassword(`${email} can now sign in with this temporary password:`, password);
+    form.reset();
+    form.elements.password.value = generatePassword();
+    await loadTeam();
+  } catch (error) {
+    errorEl.textContent = error.message;
+  } finally {
+    setBusy(button, false, "Add staff member");
+  }
+}
+
 // --- share the form ----------------------------------------------------------
 
 // The form lives one folder up from this dashboard, wherever the site is hosted.
@@ -803,6 +944,7 @@ if (!window.supabase || !SUPABASE_URL) {
   });
 
   $("copy-link").addEventListener("click", copyFormLink);
+  $("team-add").addEventListener("submit", addStaffMember);
   $("refresh").addEventListener("click", loadSubmissions);
   $("export").addEventListener("click", exportCsv);
   $("clear-filters").addEventListener("click", clearFilters);
@@ -840,6 +982,16 @@ if (!window.supabase || !SUPABASE_URL) {
     }
     if (action === "show-login") show("login");
     if (action === "share") openShare();
+    if (action === "team") openTeam();
+    if (action === "generate-password") $("team-password").value = generatePassword();
+    if (action === "copy-temp-password") {
+      navigator.clipboard.writeText($("team-notice-password").value).catch(() => {
+        $("team-notice-password").select();
+        document.execCommand("copy");
+      });
+      event.target.textContent = "Copied";
+      setTimeout(() => (event.target.textContent = "Copy"), 1500);
+    }
     if (action === "change-password") {
       $("account").open = false;
       $("password-form").reset();

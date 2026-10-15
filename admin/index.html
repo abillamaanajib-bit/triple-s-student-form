@@ -30,6 +30,7 @@
         </summary>
         <div class="menu" role="menu">
           <p id="account-email-menu" class="menu-email"></p>
+          <button type="button" role="menuitem" id="menu-team" data-action="team" hidden>Manage team</button>
           <button type="button" role="menuitem" data-action="change-password">Change password</button>
           <button type="button" role="menuitem" data-action="sign-out">Sign out</button>
         </div>
@@ -284,6 +285,51 @@
     <div class="detail-actions">
       <button type="button" id="detail-delete" class="button-danger">Delete submission</button>
       <button type="button" class="button-secondary" data-action="close-dialog">Close</button>
+    </div>
+  </dialog>
+
+  <dialog id="team-dialog" class="detail" aria-labelledby="team-title">
+    <div class="detail-head">
+      <div>
+        <h2 id="team-title">Team</h2>
+        <p class="muted">Staff who can sign in to this dashboard.</p>
+      </div>
+      <button type="button" class="icon-button" data-action="close-dialog" aria-label="Close">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18"/></svg>
+      </button>
+    </div>
+    <div class="dialog-body team-body">
+      <form id="team-add" class="team-add" novalidate>
+        <h3>Add a staff member</h3>
+        <div class="field">
+          <label class="label" for="team-email">Work email</label>
+          <input id="team-email" name="email" type="email" autocomplete="off" spellcheck="false" placeholder="name@triple-s.me">
+        </div>
+        <div class="field">
+          <label class="label" for="team-password">Temporary password</label>
+          <div class="copy-row">
+            <input id="team-password" name="password" type="text" autocomplete="off" spellcheck="false">
+            <button type="button" class="button-secondary" data-action="generate-password">Generate</button>
+          </div>
+          <p class="hint">They can change it after signing in.</p>
+        </div>
+        <label class="check-row"><input type="checkbox" name="is_admin"> Can manage the team (admin)</label>
+        <p class="field-error" role="alert"></p>
+        <button type="submit">Add staff member</button>
+      </form>
+
+      <div id="team-notice" class="team-notice" role="status" hidden>
+        <p id="team-notice-text"></p>
+        <div class="copy-row">
+          <input id="team-notice-password" type="text" readonly aria-label="Temporary password">
+          <button type="button" class="button-secondary" data-action="copy-temp-password">Copy</button>
+        </div>
+        <p class="hint">Send it to them privately, for example by WhatsApp or in person, not by email.</p>
+      </div>
+
+      <h3 class="team-list-title">Staff accounts</h3>
+      <p id="team-status" class="status" role="status"></p>
+      <ul id="team-list" class="team-list"></ul>
     </div>
   </dialog>
 

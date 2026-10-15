@@ -1144,6 +1144,131 @@ button.hbar {
   }
 }
 
+/* Team panel (staff accounts) */
+
+.team-body h3 {
+  margin: 0 0 12px;
+  font-size: 1rem;
+  color: var(--ink);
+}
+
+.team-add {
+  padding: 16px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--surface-2);
+}
+
+.team-add .field + .field {
+  margin-top: 14px;
+}
+
+.team-add input[type="text"],
+.team-add input[type="email"] {
+  font-size: 16px;
+}
+
+.team-add button[type="submit"] {
+  width: 100%;
+  margin-top: 14px;
+}
+
+.check-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-height: 44px;
+  margin-top: 8px;
+  cursor: pointer;
+}
+
+.check-row input {
+  width: 18px;
+  height: 18px;
+  accent-color: var(--accent);
+}
+
+.team-notice {
+  margin-top: 14px;
+  padding: 14px 16px;
+  border-left: 3px solid var(--positive);
+  border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+  background: var(--surface-2);
+}
+
+.team-notice p {
+  margin: 0 0 8px;
+}
+
+.team-notice input {
+  font-family: ui-monospace, "Cascadia Mono", Consolas, monospace;
+  font-size: 16px;
+}
+
+.team-notice .hint {
+  margin: 8px 0 0;
+}
+
+.team-list-title {
+  margin-top: 24px !important;
+}
+
+.team-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+}
+
+.team-member {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px 16px;
+  padding: 14px 0;
+  border-top: 1px solid var(--border);
+}
+
+.team-member-info {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+}
+
+.team-email {
+  font-weight: 600;
+  overflow-wrap: anywhere;
+}
+
+.admin-chip {
+  align-self: flex-start;
+  margin-top: 4px;
+}
+
+.team-member-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.team-member-actions button {
+  min-height: 36px;
+  padding: 6px 12px;
+  font-size: 0.8125rem;
+}
+
+@media (max-width: 600px) {
+  .team-member-actions {
+    width: 100%;
+  }
+
+  .team-member-actions button {
+    flex: 1;
+    min-height: 44px;
+  }
+}
+
 /* Phones and small tablets: finger-sized targets, and 16px text in fields so
    iPhones don't zoom the page when one is tapped. */
 @media (max-width: 760px) {
